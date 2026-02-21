@@ -222,7 +222,7 @@
 
   <!-- ═══ ASSETS ═══ -->
   <a-assets timeout="15000">
-    <a-asset-item id="mannequin-glb" src="vastraverse_mannequin.glb"></a-asset-item>
+    <a-asset-item id="mannequin-glb" src="./traditional_indian_saree_model.glb"></a-asset-item>
   </a-assets>
 
   <!-- ─────────────────────────────────────────
@@ -457,6 +457,23 @@
     <a-entity laser-controls="hand:right" raycaster="objects:.clickable; far:20"></a-entity>
     <a-entity laser-controls="hand:left"  raycaster="objects:.clickable; far:20"></a-entity>
   </a-entity>
+  <!-- RIGHT HAND CONTROLLER -->
+<a-entity id="rightHand"
+  laser-controls="hand: right"
+  raycaster="objects: .clickable; far: 20"
+  line="color: #00ffe7"
+  gltf-model="https://cdn.aframe.io/controllers/oculus/oculus-touch-controller-right.gltf"
+  scale="1 1 1">
+</a-entity>
+
+<!-- LEFT HAND CONTROLLER -->
+<a-entity id="leftHand"
+  laser-controls="hand: left"
+  raycaster="objects: .clickable; far: 20"
+  line="color: #ff2d78"
+  gltf-model="https://cdn.aframe.io/controllers/oculus/oculus-touch-controller-left.gltf"
+  scale="1 1 1">
+</a-entity>
 
 </a-scene>
 

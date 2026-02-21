@@ -2,62 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VastraVerse · SmartWeave XR</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VastraVerse SmartWeave XR</title>
 
 <!-- A-Frame -->
-<script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
-<!-- AR.js -->
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+<!-- Local aframe-ar (markerless build) -->
+<script src="./aframe-ar-main/dist/aframe-ar.min.js"></script>
 
 <style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #050810;
-    color: white;
+body { margin:0; font-family: Arial; overflow:hidden; background:#050810; color:white; }
+#uiPanel{
+  position:fixed;
+  top:20px;
+  left:20px;
+  background:rgba(0,0,0,0.6);
+  padding:20px;
+  border:1px solid #00ffe7;
+  z-index:10;
 }
-
-/* UI Panel */
-#uiPanel {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    width: 260px;
-    background: rgba(0,0,0,0.8);
-    padding: 15px;
-    border: 1px solid #c9a84c;
-    z-index: 999;
+button{
+  margin:5px 0;
+  padding:6px 12px;
+  cursor:pointer;
 }
-
-h2 {
-    font-size: 16px;
-    margin-bottom: 10px;
-    color: #c9a84c;
-}
-
-button {
-    width: 100%;
-    margin: 5px 0;
-    padding: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.fabricBtn {
-    background: #222;
-    color: white;
-    border: 1px solid #c9a84c;
-}
-
-#rotateBtn {
-    background: #c9a84c;
-}
-
-#tempSlider {
-    width: 100%;
+#temp{
+  width:100%;
 }
 </style>
 </head>
@@ -66,150 +37,295 @@ button {
 
 <!-- UI PANEL -->
 <div id="uiPanel">
-    <h2>VastraVerse XR</h2>
+  <h3>SmartWeave Control</h3>
 
-    <b>Fabric Collection</b>
-    <button class="fabricBtn" onclick="changeFabric('#c06030')">Kanchipuram Silk</button>
-    <button class="fabricBtn" onclick="changeFabric('#2050c0')">Cool Banarasi</button>
-    <button class="fabricBtn" onclick="changeFabric('#50b050')">Organic Khadi</button>
-    <button class="fabricBtn" onclick="changeFabric('#c030c0')">Smart Chanderi</button>
+  <strong>Fabric:</strong><br>
+  <button onclick="selectFabric('#c06030')">Kanchipuram Silk</button><br>
+  <button onclick="selectFabric('#2050c0')">Cool Banarasi</button><br>
+  <button onclick="selectFabric('#50b050')">Organic Khadi</button><br>
+  <button onclick="selectFabric('#c030c0')">Smart Chanderi</button><br><br>
 
-    <hr>
+  <strong>Temperature:</strong><br>
+  <input type="range" id="temp" min="15" max="50" value="30"
+         oninput="updateTemp(this.value)">
+  <div id="tempValue">30°C</div><br>
 
-    <b>Temperature</b>
-    <input type="range" id="tempSlider" min="15" max="50" value="30" oninput="updateTemp(this.value)">
-    <div id="tempValue">30°C</div>
-
-    <hr>
-
-    <button id="rotateBtn" onclick="toggleRotation()">Toggle Rotation</button>
+  <button onclick="toggleRotate()">Toggle Rotate</button>
 </div>
 
-<!-- A-FRAME SCENE -->
+<!-- A-FRAME MARKERLESS AR SCENE -->
 <a-scene
-    embedded
-    vr-mode-ui="enabled: true"
-    renderer="colorManagement: true;"
-    arjs="sourceType: webcam; debugUIEnabled: false;"
+  vr-mode-ui="enabled: true"
+  renderer="logarithmicDepthBuffer: true;"
+  ar="sourceType: webcam; debugUIEnabled: false;"
 >
 
-    <!-- Assets -->
-    <a-assets>
-        <a-asset-item id="modelAsset"
-            src="https://cdn.aframe.io/test-models/models/glTF/DamagedHelmet/glTF/DamagedHelmet.gltf">
-        </a-asset-item>
-    </a-assets>
+  <!-- Camera -->
+  <a-camera id="camera"
+            ar-raycaster
+            raycaster="objects: .clickable">
+  </a-camera>
 
-    <!-- Camera -->
-    <a-entity camera look-controls position="0 1.6 3"></a-entity>
+  <!-- Light -->
+  <a-entity light="type:ambient; intensity:0.7"></a-entity>
+  <a-entity light="type:directional; intensity:0.8" position="1 2 1"></a-entity>
 
-    <!-- Lighting -->
-    <a-entity light="type: ambient; intensity: 0.6"></a-entity>
-    <a-entity light="type: directional; intensity: 1" position="2 4 2"></a-entity>
+  <!-- Placement Circle -->
+  <a-ring id="circle"
+          rotation="-90 0 0"
+          radius-inner="0.03"
+          radius-outer="0.05"
+          color="#00ffe7">
+  </a-ring>
 
-    <!-- AR Marker -->
-    <a-marker preset="hiro">
-        <a-entity id="arModel"
-            gltf-model="#modelAsset"
-            position="0 0 0"
-            scale="0.5 0.5 0.5">
-        </a-entity>
-    </a-marker>
-
-    <!-- VR / Desktop Model -->
-    <a-entity id="vrModel"
-        gltf-model="#modelAsset"
-        position="0 1 -3"
-        scale="0.5 0.5 0.5">
-    </a-entity>
+  <!-- GLB MODEL -->
+  <a-gltf-model id="mannequin"
+                src="./vastraverse_mannequin.glb"
+                scale="0.5 0.5 0.5"
+                position="0 0 -2">
+  </a-gltf-model>
 
 </a-scene>
 
 <script>
 
-let isRotating = false;
-let rotationInterval = null;
+// STATE
+let currentColor = "#c06030";
+let rotating = false;
 
-/* FABRIC CHANGE */
-function changeFabric(colorHex) {
+// PLACE MODEL ON TOUCH
+window.addEventListener('click', function(){
+  let cam = document.querySelector("#camera");
+  let model = document.querySelector("#mannequin");
 
-    const models = [
-        document.querySelector('#arModel'),
-        document.querySelector('#vrModel')
-    ];
+  let direction = new THREE.Vector3();
+  cam.object3D.getWorldDirection(direction);
 
-    models.forEach(entity => {
+  let position = cam.object3D.position.clone().add(direction.multiplyScalar(2));
 
-        entity.addEventListener('model-loaded', () => {
-            const mesh = entity.getObject3D('mesh');
-            mesh.traverse(node => {
-                if (node.isMesh) {
-                    node.material.color.set(colorHex);
-                }
-            });
-        });
+  model.setAttribute('position', position);
+});
 
-        // If already loaded
-        const mesh = entity.getObject3D('mesh');
-        if (mesh) {
-            mesh.traverse(node => {
-                if (node.isMesh) {
-                    node.material.color.set(colorHex);
-                }
-            });
-        }
+// FABRIC CHANGE
+function selectFabric(color){
+  currentColor = color;
 
+  const model = document.querySelector('#mannequin');
+
+  model.addEventListener('model-loaded', () => {
+    const mesh = model.getObject3D('mesh');
+    mesh.traverse(node => {
+      if(node.isMesh){
+        node.material.color.set(color);
+      }
     });
+  });
 }
 
-/* TEMPERATURE REACTION */
-function updateTemp(value) {
+// TEMPERATURE REACTION
+function updateTemp(val){
+  document.getElementById("tempValue").innerText = val + "°C";
 
-    document.getElementById('tempValue').innerText = value + "°C";
+  const model = document.querySelector('#mannequin');
+  const mesh = model.getObject3D('mesh');
+  if(!mesh) return;
 
-    const models = [
-        document.querySelector('#arModel'),
-        document.querySelector('#vrModel')
-    ];
-
-    models.forEach(entity => {
-        const mesh = entity.getObject3D('mesh');
-        if (!mesh) return;
-
-        mesh.traverse(node => {
-            if (node.isMesh) {
-                if (value > 30) {
-                    node.material.emissive.set('#00ccff'); // cooling glow
-                } else if (value < 20) {
-                    node.material.emissive.set('#ff5500'); // heating glow
-                } else {
-                    node.material.emissive.set('#000000'); // neutral
-                }
-            }
-        });
-    });
-}
-
-/* ROTATION */
-function toggleRotation() {
-
-    const vrModel = document.querySelector('#vrModel');
-
-    isRotating = !isRotating;
-
-    if (isRotating) {
-        rotationInterval = setInterval(() => {
-            let rot = vrModel.getAttribute('rotation');
-            vrModel.setAttribute('rotation', {
-                x: rot.x,
-                y: rot.y + 1,
-                z: rot.z
-            });
-        }, 16);
-    } else {
-        clearInterval(rotationInterval);
+  mesh.traverse(node => {
+    if(node.isMesh){
+      if(val > 30){
+        node.material.emissive.set('#00ccff'); // Cooling glow
+      }
+      else if(val < 20){
+        node.material.emissive.set('#ff5500'); // Heating glow
+      }
+      else{
+        node.material.emissive.set('#000000'); // Neutral
+      }
     }
+  });
 }
+
+// ROTATION
+function toggleRotate(){
+  rotating = !rotating;
+}
+
+AFRAME.registerComponent('auto-rotate',{
+  tick:function(){
+    if(rotating){
+      this.el.object3D.rotation.y += 0.01;
+    }
+  }
+});
+
+document.querySelector("#mannequin")
+        .setAttribute("auto-rotate","");
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VastraVerse SmartWeave XR</title>
+
+<!-- A-Frame -->
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+<!-- Local aframe-ar (markerless build) -->
+<script src="./aframe-ar-main/dist/aframe-ar.min.js"></script>
+
+<style>
+body { margin:0; font-family: Arial; overflow:hidden; background:#050810; color:white; }
+#uiPanel{
+  position:fixed;
+  top:20px;
+  left:20px;
+  background:rgba(0,0,0,0.6);
+  padding:20px;
+  border:1px solid #00ffe7;
+  z-index:10;
+}
+button{
+  margin:5px 0;
+  padding:6px 12px;
+  cursor:pointer;
+}
+#temp{
+  width:100%;
+}
+</style>
+</head>
+
+<body>
+
+<!-- UI PANEL -->
+<div id="uiPanel">
+  <h3>SmartWeave Control</h3>
+
+  <strong>Fabric:</strong><br>
+  <button onclick="selectFabric('#c06030')">Kanchipuram Silk</button><br>
+  <button onclick="selectFabric('#2050c0')">Cool Banarasi</button><br>
+  <button onclick="selectFabric('#50b050')">Organic Khadi</button><br>
+  <button onclick="selectFabric('#c030c0')">Smart Chanderi</button><br><br>
+
+  <strong>Temperature:</strong><br>
+  <input type="range" id="temp" min="15" max="50" value="30"
+         oninput="updateTemp(this.value)">
+  <div id="tempValue">30°C</div><br>
+
+  <button onclick="toggleRotate()">Toggle Rotate</button>
+</div>
+
+<!-- A-FRAME MARKERLESS AR SCENE -->
+<a-scene
+  vr-mode-ui="enabled: true"
+  renderer="logarithmicDepthBuffer: true;"
+  ar="sourceType: webcam; debugUIEnabled: false;"
+>
+
+  <!-- Camera -->
+  <a-camera id="camera"
+            ar-raycaster
+            raycaster="objects: .clickable">
+  </a-camera>
+
+  <!-- Light -->
+  <a-entity light="type:ambient; intensity:0.7"></a-entity>
+  <a-entity light="type:directional; intensity:0.8" position="1 2 1"></a-entity>
+
+  <!-- Placement Circle -->
+  <a-ring id="circle"
+          rotation="-90 0 0"
+          radius-inner="0.03"
+          radius-outer="0.05"
+          color="#00ffe7">
+  </a-ring>
+
+  <!-- GLB MODEL -->
+  <a-gltf-model id="mannequin"
+                src="./vastraverse_mannequin.glb"
+                scale="0.5 0.5 0.5"
+                position="0 0 -2">
+  </a-gltf-model>
+
+</a-scene>
+
+<script>
+
+// STATE
+let currentColor = "#c06030";
+let rotating = false;
+
+// PLACE MODEL ON TOUCH
+window.addEventListener('click', function(){
+  let cam = document.querySelector("#camera");
+  let model = document.querySelector("#mannequin");
+
+  let direction = new THREE.Vector3();
+  cam.object3D.getWorldDirection(direction);
+
+  let position = cam.object3D.position.clone().add(direction.multiplyScalar(2));
+
+  model.setAttribute('position', position);
+});
+
+// FABRIC CHANGE
+function selectFabric(color){
+  currentColor = color;
+
+  const model = document.querySelector('#mannequin');
+
+  model.addEventListener('model-loaded', () => {
+    const mesh = model.getObject3D('mesh');
+    mesh.traverse(node => {
+      if(node.isMesh){
+        node.material.color.set(color);
+      }
+    });
+  });
+}
+
+// TEMPERATURE REACTION
+function updateTemp(val){
+  document.getElementById("tempValue").innerText = val + "°C";
+
+  const model = document.querySelector('#mannequin');
+  const mesh = model.getObject3D('mesh');
+  if(!mesh) return;
+
+  mesh.traverse(node => {
+    if(node.isMesh){
+      if(val > 30){
+        node.material.emissive.set('#00ccff'); // Cooling glow
+      }
+      else if(val < 20){
+        node.material.emissive.set('#ff5500'); // Heating glow
+      }
+      else{
+        node.material.emissive.set('#000000'); // Neutral
+      }
+    }
+  });
+}
+
+// ROTATION
+function toggleRotate(){
+  rotating = !rotating;
+}
+
+AFRAME.registerComponent('auto-rotate',{
+  tick:function(){
+    if(rotating){
+      this.el.object3D.rotation.y += 0.01;
+    }
+  }
+});
+
+document.querySelector("#mannequin")
+        .setAttribute("auto-rotate","");
 
 </script>
 

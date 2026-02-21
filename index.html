@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VastraVerse · Markerless Smart-AR</title>
-
-  <!-- Stable A-Frame -->
+  <title>VastraVerse · XR Hybrid</title>
+  
+  <!-- A-Frame Library -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <!-- Local aframe-ar (Ensure this path is correct) -->
-  <script src="./aframe-ar-main/dist/aframe-ar.min.js"></script>
+  <!-- Environment for VR -->
+  <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Orbitron:wght@700;900&family=Space+Mono&display=swap');
@@ -17,226 +17,223 @@
       --gold: #c9a84c;
       --cyan: #00ffe7;
       --magenta: #ff2d78;
-      --bg: rgba(5, 8, 16, 0.85);
-      --border: rgba(201, 168, 76, 0.3);
+      --panel-bg: rgba(5, 8, 16, 0.9);
+      --border: rgba(201, 168, 76, 0.4);
     }
 
     body { margin: 0; overflow: hidden; font-family: 'Rajdhani', sans-serif; background: #000; }
 
-    /* ── UI HUD LAYER ── */
-    #hud-overlay {
+    /* ── UI OVERLAY ── */
+    #vastra-interface {
       position: fixed; inset: 0; z-index: 100;
-      pointer-events: none; /* Allows interacting with 3D through UI */
-      display: flex; flex-direction: column; justify-content: space-between;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: 280px 1fr 240px;
+      grid-template-rows: 70px 1fr 100px;
     }
-    #hud-overlay > * { pointer-events: all; }
+    #vastra-interface > * { pointer-events: all; }
 
-    /* Panels */
     .header {
-      background: var(--bg); border-bottom: 1px solid var(--border);
-      padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
+      grid-column: 1 / -1; background: var(--panel-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 30px; display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(10px);
     }
-    .side-panels { display: flex; justify-content: space-between; padding: 20px; flex-grow: 1; }
-    
-    .panel {
-      width: 260px; background: var(--bg); border: 1px solid var(--border);
-      padding: 15px; backdrop-filter: blur(8px); height: fit-content;
-    }
+    .left-panel, .right-panel { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .panel-card { background: var(--panel-bg); border: 1px solid var(--border); padding: 15px; border-top: 3px solid var(--gold); }
 
-    /* Typography */
-    .logo { font-family: 'Orbitron'; color: var(--gold); letter-spacing: 3px; font-size: 16px; }
-    .label { font-family: 'Space Mono'; font-size: 8px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; display: block; }
-    .temp-val { font-family: 'Orbitron'; font-size: 35px; font-weight: 900; color: #fff; }
+    .logo { font-family: 'Orbitron'; color: var(--gold); letter-spacing: 4px; font-size: 18px; }
+    .label { font-family: 'Space Mono'; font-size: 8px; color: var(--gold); margin-bottom: 5px; display: block; }
+    .temp-val { font-family: 'Orbitron'; font-size: 42px; font-weight: 900; color: #fff; }
 
-    /* Fabric Buttons */
     .fabric-btn {
-      padding: 8px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.1);
-      cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;
-      font-size: 14px; color: #d0ddf5;
+      padding: 10px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.02); color: #fff; cursor: pointer;
+      display: flex; align-items: center; gap: 10px; transition: 0.3s;
     }
-    .fabric-btn.active { border-color: var(--gold); background: rgba(201,168,76,0.15); color: #fff; }
+    .fabric-btn.active { border-color: var(--cyan); background: rgba(0, 255, 231, 0.1); }
     .dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    /* Slider */
     input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 
-    /* Footer */
-    .footer {
-      background: var(--bg); border-top: 1px solid var(--border);
-      padding: 15px; text-align: center; font-family: 'Space Mono';
-      color: var(--cyan); font-size: 10px; letter-spacing: 2px;
+    .bottom-bar {
+      grid-column: 1 / -1; background: var(--panel-bg); border-top: 1px solid var(--border);
+      display: flex; justify-content: center; align-items: center; gap: 40px;
     }
 
-    /* Scanner Scanline Effect */
-    .scanline {
-      position: absolute; width: 100%; height: 2px; background: var(--cyan);
-      opacity: 0.2; top: 0; animation: scan 4s linear infinite; pointer-events: none;
+    .xr-mode-btn {
+      background: transparent; border: 1px solid var(--cyan); color: var(--cyan);
+      padding: 10px 25px; font-family: 'Orbitron'; font-size: 10px; cursor: pointer;
     }
-    @keyframes scan { from { top: 0%; } to { top: 100%; } }
+    .xr-mode-btn:hover { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
+
+    #notif {
+      position: fixed; top: 85px; left: 50%; transform: translateX(-50%);
+      background: rgba(0, 255, 231, 0.2); border: 1px solid var(--cyan);
+      color: var(--cyan); padding: 8px 20px; font-family: 'Space Mono'; display: none;
+    }
   </style>
 </head>
 <body>
 
-  <!-- UI OVERLAY -->
-  <div id="hud-overlay">
-    <div class="header">
-      <div class="logo">VASTRAVERSE<span> · XR</span></div>
-      <div id="system-status" style="color: var(--cyan); font-family: 'Space Mono'; font-size: 9px;">SCANNING SURFACE...</div>
-    </div>
+  <!-- UI DASHBOARD -->
+  <div id="vastra-interface">
+    <header class="header">
+      <div class="logo">VASTRA<span>VERSE</span> XR</div>
+      <div id="status-tag" style="color: var(--cyan); font-family: 'Space Mono'; font-size: 10px;">SYSTEM ONLINE</div>
+    </header>
 
-    <div class="side-panels">
-      <!-- Thermal Control -->
-      <div class="panel" style="border-top: 3px solid var(--cyan);">
-        <span class="label">Nano-Thermal Sensor</span>
+    <aside class="left-panel">
+      <div class="panel-card" style="border-top-color: var(--cyan);">
+        <span class="label">NANO-THERMAL SENSOR</span>
         <div class="temp-val" id="temp-display">44<sup>°C</sup></div>
         <input type="range" id="temp-slider" min="15" max="50" value="44">
-        <div style="margin-top:12px; font-family:'Space Mono'; font-size:10px; color: var(--cyan);">
-          STATUS: <span id="mode-text">COOLING ACTIVE</span>
-        </div>
+        <div id="mode-text" style="color: var(--cyan); margin-top: 10px; font-size: 12px; font-family: 'Space Mono';">COOLING ACTIVE</div>
       </div>
 
-      <!-- Fabric Selector -->
-      <div class="panel">
-        <span class="label">Smart Collection</span>
-        <div class="fabric-btn active" onclick="changeFabric('#c06030', 'Kanchipuram Silk')">
-          <div class="dot" style="background: #c06030;"></div> Kanchipuram Silk
-        </div>
-        <div class="fabric-btn" onclick="changeFabric('#2050c0', 'Cool Banarasi')">
-          <div class="dot" style="background: #2050c0;"></div> Cool Banarasi
-        </div>
-        <div class="fabric-btn" onclick="changeFabric('#50b050', 'Organic Khadi')">
-          <div class="dot" style="background: #50b050;"></div> Organic Khadi
+      <div class="panel-card">
+        <span class="label">SMART FABRICS</span>
+        <div class="fabric-btn active" onclick="updateSuit('#c06030', 'Silk')"><div class="dot" style="background:#c06030"></div>Kanchipuram Silk</div>
+        <div class="fabric-btn" onclick="updateSuit('#2050c0', 'Banarasi')"><div class="dot" style="background:#2050c0"></div>Cool Banarasi</div>
+        <div class="fabric-btn" onclick="updateSuit('#50b050', 'Khadi')"><div class="dot" style="background:#50b050"></div>Organic Khadi</div>
+      </div>
+    </aside>
+
+    <section></section>
+
+    <aside class="right-panel">
+      <div class="panel-card">
+        <span class="label">FIBER STATUS</span>
+        <div style="font-size: 12px; line-height: 1.8;">
+          ⚡ Power: 98%<br>
+          🌿 Eco: <span id="eco-type">Organic Silk</span><br>
+          📶 Link: Active
         </div>
       </div>
-    </div>
+    </aside>
 
-    <div class="footer">
-      TAP THE SURFACE TO PLACE 3D MODEL
-    </div>
+    <footer class="bottom-bar">
+      <button class="xr-mode-btn" onclick="toggleRotation()">TOGGLE ROTATION</button>
+      <div style="color: var(--gold); font-size: 10px; font-family: 'Space Mono';">AR: POINT CAMERA & TAP TO PLACE</div>
+    </footer>
   </div>
 
-  <div class="scanline"></div>
-
-  <!-- A-FRAME / AR SCRIPT -->
-  <script>
-    // System Status Update
-    function updateHUD(msg) {
-      document.querySelector("#system-status").innerText = msg.toUpperCase();
-    }
-
-    // AR Placement Logic
-    AFRAME.registerComponent('ar-logic', {
-      init: function() {
-        updateHUD('AR System Ready');
-      },
-      tick: function() {
-        let cam = document.querySelector("#cam");
-        if (!cam || !cam.components.raycaster) return;
-
-        // Find intersection with the world
-        let intersections = cam.components.raycaster.getIntersections(this.el);
-        if (intersections.length > 0) {
-          let hitPoint = intersections[0].point;
-          let circle = document.querySelector("#circle");
-          circle.setAttribute('position', hitPoint);
-          circle.setAttribute('visible', 'true');
-        }
-      }
-    });
-
-    // Touch to Place function
-    window.addEventListener('touchstart', function() {
-      let circle = document.querySelector("#circle");
-      let model = document.querySelector("#mannequin");
-      let pos = circle.getAttribute('position');
-
-      if (pos) {
-        model.setAttribute('position', pos);
-        model.setAttribute('visible', 'true');
-        updateHUD('Mannequin Placed');
-      }
-    });
-
-    // Fabric Color Function (Injection into GLB)
-    function changeFabric(hexColor, name) {
-      const modelEntity = document.querySelector("#mannequin");
-      
-      // Update UI
-      document.querySelectorAll('.fabric-btn').forEach(b => b.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      updateHUD('Applied: ' + name);
-
-      // Change GLB Mesh Colors
-      const mesh = modelEntity.getObject3D('mesh');
-      if (mesh) {
-        mesh.traverse(function(node) {
-          if (node.isMesh) {
-            // Create a new material or update existing one
-            node.material.color.set(hexColor);
-          }
-        });
-      }
-    }
-
-    // Temperature Slider Logic
-    window.addEventListener('DOMContentLoaded', () => {
-      const slider = document.querySelector('#temp-slider');
-      const display = document.querySelector('#temp-display');
-      const modeText = document.querySelector('#mode-text');
-      const thermalLight = document.querySelector('#thermal-light');
-
-      slider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        display.innerHTML = `${val}<sup>°C</sup>`;
-
-        if (val > 30) {
-          modeText.innerText = "COOLING ACTIVE";
-          modeText.style.color = "var(--cyan)";
-          thermalLight.setAttribute('light', {color: '#00ffe7', intensity: (val - 30) / 10});
-        } else if (val < 22) {
-          modeText.innerText = "HEATING ACTIVE";
-          modeText.style.color = "var(--magenta)";
-          thermalLight.setAttribute('light', {color: '#ff2d78', intensity: (22 - val) / 10});
-        } else {
-          modeText.innerText = "STABLE";
-          modeText.style.color = "#fff";
-          thermalLight.setAttribute('light', 'intensity', 0);
-        }
-      });
-    });
-  </script>
+  <div id="notif">FABRIC UPDATED</div>
 
   <!-- A-FRAME SCENE -->
-  <a-scene ar ar-logic renderer="antialias: true; alpha: true;">
+  <!-- 'ar' and 'vr' are handled by WebXR automatically -->
+  <a-scene 
+    webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #vastra-interface;"
+    renderer="antialias: true; alpha: true; colorManagement: true;">
     
-    <!-- Camera with Raycaster for surface detection -->
-    <a-camera id="cam" ar-raycaster raycaster="objects:none;"></a-camera>
-    
-    <!-- Surface Detection Ring (Reticle) -->
-    <a-ring id="circle" 
-            rotation="-90 0 0" 
-            radius-inner="0.08" 
-            radius-outer="0.12" 
-            color="#00ffe7" 
-            visible="false">
-    </a-ring>
+    <a-assets>
+      <!-- REPLACEMENT MODEL URL (Wait for it to load) -->
+      <a-asset-item id="suitModel" src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SheenChair/glTF-Binary/SheenChair.glb"></a-asset-item>
+      <!-- Note: Swap above 'src' to "./vastraverse_mannequin.glb" when your file is ready -->
+    </a-assets>
 
-    <!-- The 3D Mannequin Model -->
-    <a-entity id="mannequin" 
-              gltf-model="./vastraverse_mannequin.glb" 
-              scale="10 10 10" 
-              position="0 0 -5" 
-              visible="false">
-              
-      <!-- Attached Light for Thermal Effects -->
-      <a-light id="thermal-light" type="point" intensity="0" position="0 1.5 0"></a-light>
+    <!-- VR Background (Hidden in AR) -->
+    <a-entity id="vr-env" environment="preset: contact; grid: 1; gridColor: #c9a84c; background: #050810;"></a-entity>
+
+    <!-- Camera Setup -->
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0"></a-camera>
+      <a-entity laser-controls="hand: right"></a-entity>
     </a-entity>
 
-    <!-- General Lighting -->
-    <a-light type="ambient" intensity="0.6"></a-light>
-    <a-light type="directional" position="1 2 1" intensity="0.5"></a-light>
+    <!-- AR Placement Indicator -->
+    <a-ring id="reticle" rotation="-90 0 0" radius-inner="0.1" radius-outer="0.15" color="#00ffe7"></a-ring>
+
+    <!-- THE 3D MODEL -->
+    <a-entity id="suit" 
+              gltf-model="#suitModel" 
+              position="0 0.5 -2.5" 
+              scale="2 2 2"
+              visible="true">
+      <a-light id="suitGlow" type="point" intensity="0" position="0 1 0"></a-light>
+    </a-entity>
+
+    <!-- Lighting -->
+    <a-light type="ambient" intensity="0.7"></a-light>
+    <a-light type="directional" position="1 3 2" intensity="1"></a-light>
 
   </a-scene>
 
+  <script>
+    const suit = document.querySelector('#suit');
+    const reticle = document.querySelector('#reticle');
+    const glow = document.querySelector('#suitGlow');
+    let rotating = true;
+
+    // --- AR LOGIC: Reticle Follows Gaze ---
+    document.querySelector('a-scene').addEventListener('tick', () => {
+      const cam = document.querySelector('#cam');
+      let pos = cam.object3D.position;
+      let dir = new THREE.Vector3(0, 0, -1);
+      dir.applyQuaternion(cam.object3D.quaternion);
+      reticle.object3D.position.set(pos.x + dir.x*2, 0.01, pos.z + dir.z*2);
+    });
+
+    // Place Model on Click
+    window.addEventListener('click', () => {
+      const pos = reticle.getAttribute('position');
+      suit.setAttribute('position', pos);
+      notify("OBJECT POSITIONED");
+    });
+
+    // --- UI INTERACTION ---
+    function updateSuit(color, name) {
+      const mesh = suit.getObject3D('mesh');
+      if (mesh) {
+        mesh.traverse(node => {
+          if (node.isMesh) {
+            node.material.color.set(color);
+            node.material.emissive.set(color);
+            node.material.emissiveIntensity = 0.2;
+          }
+        });
+      }
+      document.getElementById('eco-type').innerText = name;
+      notify(name.toUpperCase() + " APPLIED");
+    }
+
+    // Thermal Slider
+    document.querySelector('#temp-slider').addEventListener('input', (e) => {
+      const val = e.target.value;
+      document.getElementById('temp-display').innerHTML = `${val}<sup>°C</sup>`;
+      const mode = document.getElementById('mode-text');
+      
+      if(val > 30) {
+        mode.innerText = "COOLING ACTIVE"; mode.style.color = "var(--cyan)";
+        glow.setAttribute('light', {intensity: (val-30)/5, color: '#00ffe7'});
+      } else if (val < 22) {
+        mode.innerText = "HEATING ACTIVE"; mode.style.color = "var(--magenta)";
+        glow.setAttribute('light', {intensity: (22-val)/5, color: '#ff2d78'});
+      } else {
+        mode.innerText = "STABLE"; mode.style.color = "var(--gold)";
+        glow.setAttribute('light', 'intensity', 0);
+      }
+    });
+
+    function toggleRotation() { 
+      rotating = !rotating; 
+      notify(rotating ? "ROTATION ON" : "ROTATION OFF");
+    }
+
+    // Smooth Rotation Tick
+    setInterval(() => {
+      if(rotating) {
+        let rot = suit.getAttribute('rotation');
+        rot.y += 0.8;
+        suit.setAttribute('rotation', rot);
+      }
+    }, 16);
+
+    function notify(msg) {
+      const n = document.getElementById('notif');
+      n.innerText = msg; n.style.display = 'block';
+      setTimeout(() => n.style.display = 'none', 2000);
+    }
+  </script>
 </body>
 </html>

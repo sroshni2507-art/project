@@ -1,160 +1,242 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>VastraVerse SmartWeave XR</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- A-Frame -->
-<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VastraVerse · Markerless Smart-AR</title>
 
-<style>
-body {
-  margin:0;
-  font-family: Arial;
-  background:#0b0f1a;
-  color:white;
-}
+  <!-- Stable A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- Local aframe-ar (Ensure this path is correct) -->
+  <script src="./aframe-ar-main/dist/aframe-ar.min.js"></script>
 
-/* UI Panel */
-#ui {
-  position:fixed;
-  top:20px;
-  left:20px;
-  background:rgba(0,0,0,0.7);
-  padding:15px;
-  border:1px solid #00ffe7;
-  z-index:10;
-}
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Orbitron:wght@700;900&family=Space+Mono&display=swap');
 
-button {
-  margin:5px 0;
-  padding:6px 10px;
-  cursor:pointer;
-  width:100%;
-}
+    :root {
+      --gold: #c9a84c;
+      --cyan: #00ffe7;
+      --magenta: #ff2d78;
+      --bg: rgba(5, 8, 16, 0.85);
+      --border: rgba(201, 168, 76, 0.3);
+    }
 
-input {
-  width:100%;
-}
-</style>
+    body { margin: 0; overflow: hidden; font-family: 'Rajdhani', sans-serif; background: #000; }
+
+    /* ── UI HUD LAYER ── */
+    #hud-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      pointer-events: none; /* Allows interacting with 3D through UI */
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    #hud-overlay > * { pointer-events: all; }
+
+    /* Panels */
+    .header {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .side-panels { display: flex; justify-content: space-between; padding: 20px; flex-grow: 1; }
+    
+    .panel {
+      width: 260px; background: var(--bg); border: 1px solid var(--border);
+      padding: 15px; backdrop-filter: blur(8px); height: fit-content;
+    }
+
+    /* Typography */
+    .logo { font-family: 'Orbitron'; color: var(--gold); letter-spacing: 3px; font-size: 16px; }
+    .label { font-family: 'Space Mono'; font-size: 8px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; display: block; }
+    .temp-val { font-family: 'Orbitron'; font-size: 35px; font-weight: 900; color: #fff; }
+
+    /* Fabric Buttons */
+    .fabric-btn {
+      padding: 8px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;
+      font-size: 14px; color: #d0ddf5;
+    }
+    .fabric-btn.active { border-color: var(--gold); background: rgba(201,168,76,0.15); color: #fff; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* Slider */
+    input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; }
+
+    /* Footer */
+    .footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 15px; text-align: center; font-family: 'Space Mono';
+      color: var(--cyan); font-size: 10px; letter-spacing: 2px;
+    }
+
+    /* Scanner Scanline Effect */
+    .scanline {
+      position: absolute; width: 100%; height: 2px; background: var(--cyan);
+      opacity: 0.2; top: 0; animation: scan 4s linear infinite; pointer-events: none;
+    }
+    @keyframes scan { from { top: 0%; } to { top: 100%; } }
+  </style>
 </head>
-
 <body>
 
-<!-- CONTROL PANEL -->
-<div id="ui">
-  <h3>SmartWeave Controls</h3>
+  <!-- UI OVERLAY -->
+  <div id="hud-overlay">
+    <div class="header">
+      <div class="logo">VASTRAVERSE<span> · XR</span></div>
+      <div id="system-status" style="color: var(--cyan); font-family: 'Space Mono'; font-size: 9px;">SCANNING SURFACE...</div>
+    </div>
 
-  <b>Fabric</b><br>
-  <button onclick="changeFabric('#c06030')">Kanchipuram Silk</button>
-  <button onclick="changeFabric('#2050c0')">Cool Banarasi</button>
-  <button onclick="changeFabric('#50b050')">Organic Khadi</button>
-  <button onclick="changeFabric('#c030c0')">Smart Chanderi</button>
+    <div class="side-panels">
+      <!-- Thermal Control -->
+      <div class="panel" style="border-top: 3px solid var(--cyan);">
+        <span class="label">Nano-Thermal Sensor</span>
+        <div class="temp-val" id="temp-display">44<sup>°C</sup></div>
+        <input type="range" id="temp-slider" min="15" max="50" value="44">
+        <div style="margin-top:12px; font-family:'Space Mono'; font-size:10px; color: var(--cyan);">
+          STATUS: <span id="mode-text">COOLING ACTIVE</span>
+        </div>
+      </div>
 
-  <hr>
+      <!-- Fabric Selector -->
+      <div class="panel">
+        <span class="label">Smart Collection</span>
+        <div class="fabric-btn active" onclick="changeFabric('#c06030', 'Kanchipuram Silk')">
+          <div class="dot" style="background: #c06030;"></div> Kanchipuram Silk
+        </div>
+        <div class="fabric-btn" onclick="changeFabric('#2050c0', 'Cool Banarasi')">
+          <div class="dot" style="background: #2050c0;"></div> Cool Banarasi
+        </div>
+        <div class="fabric-btn" onclick="changeFabric('#50b050', 'Organic Khadi')">
+          <div class="dot" style="background: #50b050;"></div> Organic Khadi
+        </div>
+      </div>
+    </div>
 
-  <b>Temperature</b><br>
-  <input type="range" min="15" max="50" value="30"
-         oninput="updateTemp(this.value)">
-  <div id="tempValue">30°C</div>
+    <div class="footer">
+      TAP THE SURFACE TO PLACE 3D MODEL
+    </div>
+  </div>
 
-  <hr>
+  <div class="scanline"></div>
 
-  <button onclick="toggleRotate()">Toggle Rotation</button>
-</div>
+  <!-- A-FRAME / AR SCRIPT -->
+  <script>
+    // System Status Update
+    function updateHUD(msg) {
+      document.querySelector("#system-status").innerText = msg.toUpperCase();
+    }
 
-<!-- A-FRAME SCENE -->
-<a-scene background="color: #111">
+    // AR Placement Logic
+    AFRAME.registerComponent('ar-logic', {
+      init: function() {
+        updateHUD('AR System Ready');
+      },
+      tick: function() {
+        let cam = document.querySelector("#cam");
+        if (!cam || !cam.components.raycaster) return;
 
-  <!-- Camera -->
-  <a-entity camera position="0 1.6 3"></a-entity>
-
-  <!-- Lights -->
-  <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-  <a-entity light="type: directional; intensity: 1" position="2 4 2"></a-entity>
-
-  <!-- 3D MODEL -->
-  <a-gltf-model id="mannequin"
-      src="./vastraverse_mannequin.glb"
-      position="0 0 -2"
-      rotation="0 180 0"
-      scale="0.5 0.5 0.5">
-  </a-gltf-model>
-
-</a-scene>
-
-<script>
-
-// Rotation state
-let rotating = false;
-
-// Change Fabric Color
-function changeFabric(color){
-
-  const model = document.querySelector('#mannequin');
-  const mesh = model.getObject3D('mesh');
-
-  if(!mesh){
-    model.addEventListener('model-loaded', function(){
-      applyColor(model, color);
+        // Find intersection with the world
+        let intersections = cam.components.raycaster.getIntersections(this.el);
+        if (intersections.length > 0) {
+          let hitPoint = intersections[0].point;
+          let circle = document.querySelector("#circle");
+          circle.setAttribute('position', hitPoint);
+          circle.setAttribute('visible', 'true');
+        }
+      }
     });
-  } else {
-    applyColor(model, color);
-  }
-}
 
-function applyColor(model, color){
-  const mesh = model.getObject3D('mesh');
-  mesh.traverse(node => {
-    if(node.isMesh){
-      node.material.map = null;   // remove texture (important)
-      node.material.color.set(color);
-      node.material.needsUpdate = true;
-    }
-  });
-}
+    // Touch to Place function
+    window.addEventListener('touchstart', function() {
+      let circle = document.querySelector("#circle");
+      let model = document.querySelector("#mannequin");
+      let pos = circle.getAttribute('position');
 
-// Temperature Effect
-function updateTemp(val){
-  document.getElementById("tempValue").innerText = val + "°C";
-
-  const model = document.querySelector('#mannequin');
-  const mesh = model.getObject3D('mesh');
-  if(!mesh) return;
-
-  mesh.traverse(node => {
-    if(node.isMesh){
-      if(val > 30){
-        node.material.emissive.set('#00ccff');
+      if (pos) {
+        model.setAttribute('position', pos);
+        model.setAttribute('visible', 'true');
+        updateHUD('Mannequin Placed');
       }
-      else if(val < 20){
-        node.material.emissive.set('#ff5500');
-      }
-      else{
-        node.material.emissive.set('#000000');
+    });
+
+    // Fabric Color Function (Injection into GLB)
+    function changeFabric(hexColor, name) {
+      const modelEntity = document.querySelector("#mannequin");
+      
+      // Update UI
+      document.querySelectorAll('.fabric-btn').forEach(b => b.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      updateHUD('Applied: ' + name);
+
+      // Change GLB Mesh Colors
+      const mesh = modelEntity.getObject3D('mesh');
+      if (mesh) {
+        mesh.traverse(function(node) {
+          if (node.isMesh) {
+            // Create a new material or update existing one
+            node.material.color.set(hexColor);
+          }
+        });
       }
     }
-  });
-}
 
-// Toggle Rotation
-function toggleRotate(){
-  rotating = !rotating;
-}
+    // Temperature Slider Logic
+    window.addEventListener('DOMContentLoaded', () => {
+      const slider = document.querySelector('#temp-slider');
+      const display = document.querySelector('#temp-display');
+      const modeText = document.querySelector('#mode-text');
+      const thermalLight = document.querySelector('#thermal-light');
 
-// Auto rotate component
-AFRAME.registerComponent('auto-rotate',{
-  tick:function(){
-    if(rotating){
-      this.el.object3D.rotation.y += 0.01;
-    }
-  }
-});
+      slider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        display.innerHTML = `${val}<sup>°C</sup>`;
 
-document.querySelector('#mannequin')
-        .setAttribute('auto-rotate','');
+        if (val > 30) {
+          modeText.innerText = "COOLING ACTIVE";
+          modeText.style.color = "var(--cyan)";
+          thermalLight.setAttribute('light', {color: '#00ffe7', intensity: (val - 30) / 10});
+        } else if (val < 22) {
+          modeText.innerText = "HEATING ACTIVE";
+          modeText.style.color = "var(--magenta)";
+          thermalLight.setAttribute('light', {color: '#ff2d78', intensity: (22 - val) / 10});
+        } else {
+          modeText.innerText = "STABLE";
+          modeText.style.color = "#fff";
+          thermalLight.setAttribute('light', 'intensity', 0);
+        }
+      });
+    });
+  </script>
 
-</script>
+  <!-- A-FRAME SCENE -->
+  <a-scene ar ar-logic renderer="antialias: true; alpha: true;">
+    
+    <!-- Camera with Raycaster for surface detection -->
+    <a-camera id="cam" ar-raycaster raycaster="objects:none;"></a-camera>
+    
+    <!-- Surface Detection Ring (Reticle) -->
+    <a-ring id="circle" 
+            rotation="-90 0 0" 
+            radius-inner="0.08" 
+            radius-outer="0.12" 
+            color="#00ffe7" 
+            visible="false">
+    </a-ring>
+
+    <!-- The 3D Mannequin Model -->
+    <a-entity id="mannequin" 
+              gltf-model="./vastraverse_mannequin.glb" 
+              scale="10 10 10" 
+              position="0 0 -5" 
+              visible="false">
+              
+      <!-- Attached Light for Thermal Effects -->
+      <a-light id="thermal-light" type="point" intensity="0" position="0 1.5 0"></a-light>
+    </a-entity>
+
+    <!-- General Lighting -->
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.5"></a-light>
+
+  </a-scene>
 
 </body>
 </html>

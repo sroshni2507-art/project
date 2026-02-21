@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VastraVerse · VR Showroom</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;700&family=Space+Mono&display=swap');
+
+    :root {
+      --gold:    #c9a84c;
+      --cyan:    #00ffe7;
+      --magenta: #ff2d78;
+      --bg:      rgba(4, 7, 14, 0.92);
+      --border:  rgba(201,168,76,0.35);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: 'Rajdhani', sans-serif; }
+
+    /* ────────── HUD OVERLAY ────────── */
+    #hud {
+      position: fixed; inset: 0; z-index: 200;
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: 270px 1fr 230px;
+      grid-template-rows: 64px 1fr 90px;
+    }
+    #hud > * { pointer-events: all; }
+
+    /* Header */
+    .hud-header {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+    .logo {
+      font-family: 'Orbitron'; font-size: 17px; letter-spacing: 5px;
+      color: var(--gold);
+    }
+    .logo span { color: #fff; }
+    .status { font-family: 'Space Mono'; font-size: 9px; color: var(--cyan); display: flex; align-items: center; gap: 6px; }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* Panels */
+    .left-panel, .right-panel {
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--gold);
+      padding: 14px;
+      backdrop-filter: blur(10px);
+    }
+    .card.cyan  { border-top-color: var(--cyan); }
+    .card.magenta { border-top-color: var(--magenta); }
+
+    .lbl { font-family: 'Space Mono'; font-size: 7px; color: var(--gold); letter-spacing: 2px; margin-bottom: 7px; display: block; }
+    .big-val { font-family: 'Orbitron'; font-size: 38px; font-weight: 900; color: #fff; line-height: 1; }
+    .big-val sup { font-size: 14px; }
+
+    input[type=range] { width: 100%; accent-color: var(--gold); margin-top: 8px; cursor: pointer; }
+
+    .mode-tag { font-family: 'Space Mono'; font-size: 11px; margin-top: 8px; }
+
+    /* Fabric buttons */
+    .fab-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; margin-bottom: 5px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+      color: #ccc; font-size: 13px; transition: all .25s;
+    }
+    .fab-btn:hover { border-color: var(--gold); background: rgba(201,168,76,0.07); color: #fff; }
+    .fab-btn.active { border-color: var(--cyan); background: rgba(0,255,231,0.08); color: #fff; }
+    .swatch { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Stat rows */
+    .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .stat-row span:last-child { color: var(--cyan); font-family: 'Space Mono'; font-size: 10px; }
+
+    /* Footer */
+    .hud-footer {
+      grid-column: 1 / -1;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: center; align-items: center; gap: 30px;
+      backdrop-filter: blur(14px);
+    }
+    .vr-btn {
+      font-family: 'Orbitron'; font-size: 10px; letter-spacing: 2px;
+      padding: 10px 28px; cursor: pointer; transition: all .25s;
+      background: transparent;
+    }
+    .vr-btn.cyan  { border: 1px solid var(--cyan); color: var(--cyan); }
+    .vr-btn.gold  { border: 1px solid var(--gold); color: var(--gold); }
+    .vr-btn.mag   { border: 1px solid var(--magenta); color: var(--magenta); }
+    .vr-btn.cyan:hover  { background: var(--cyan); color: #000; box-shadow: 0 0 20px var(--cyan); }
+    .vr-btn.gold:hover  { background: var(--gold); color: #000; box-shadow: 0 0 20px var(--gold); }
+    .vr-btn.mag:hover   { background: var(--magenta); color: #000; box-shadow: 0 0 20px var(--magenta); }
+
+    /* Middle spacer */
+    .mid { pointer-events: none; }
+
+    /* Toast */
+    #toast {
+      position: fixed; top: 78px; left: 50%; transform: translateX(-50%);
+      padding: 7px 22px; z-index: 300;
+      font-family: 'Space Mono'; font-size: 11px;
+      background: rgba(0,255,231,.15); border: 1px solid var(--cyan); color: var(--cyan);
+      display: none;
+      animation: slideIn .2s ease;
+    }
+    @keyframes slideIn { from{top:70px;opacity:0} to{top:78px;opacity:1} }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ HUD ═══════════════ -->
+<div id="hud">
+
+  <header class="hud-header">
+    <div class="logo">VASTRA<span>VERSE</span> &nbsp;·&nbsp; VR SHOWROOM</div>
+    <div class="status"><div class="pulse"></div>SYSTEM ONLINE</div>
+  </header>
+
+  <!-- LEFT -->
+  <aside class="left-panel">
+
+    <div class="card cyan">
+      <span class="lbl">NANO-THERMAL SENSOR</span>
+      <div class="big-val" id="temp-disp">44<sup>°C</sup></div>
+      <input type="range" id="temp-slider" min="15" max="50" value="44">
+      <div class="mode-tag" id="mode-text" style="color:var(--cyan)">COOLING ACTIVE</div>
+    </div>
+
+    <div class="card">
+      <span class="lbl">SMART FABRICS</span>
+      <div class="fab-btn active" onclick="pickFabric(this,'#b85c20','Kanchipuram Silk','#b85c20')">
+        <div class="swatch" style="background:#b85c20"></div>Kanchipuram Silk
+      </div>
+      <div class="fab-btn" onclick="pickFabric(this,'#1a3a9a','Cool Banarasi','#00ffe7')">
+        <div class="swatch" style="background:#1a3a9a"></div>Cool Banarasi
+      </div>
+      <div class="fab-btn" onclick="pickFabric(this,'#267a26','Organic Khadi','#50ff90')">
+        <div class="swatch" style="background:#267a26"></div>Organic Khadi
+      </div>
+      <div class="fab-btn" onclick="pickFabric(this,'#7b2fbe','Mysore Silk','#c87dff')">
+        <div class="swatch" style="background:#7b2fbe"></div>Mysore Silk
+      </div>
+      <div class="fab-btn" onclick="pickFabric(this,'#8a1a2a','Chanderi Red','#ff2d78')">
+        <div class="swatch" style="background:#8a1a2a"></div>Chanderi Red
+      </div>
+    </div>
+
+  </aside>
+
+  <div class="mid"></div>
+
+  <!-- RIGHT -->
+  <aside class="right-panel">
+
+    <div class="card">
+      <span class="lbl">FIBER STATUS</span>
+      <div class="stat-row"><span>Fabric</span><span id="fab-name">Kanchipuram Silk</span></div>
+      <div class="stat-row"><span>Power</span><span>98%</span></div>
+      <div class="stat-row"><span>Nano Link</span><span>ACTIVE</span></div>
+      <div class="stat-row"><span>UV Shield</span><span>ON</span></div>
+      <div class="stat-row"><span>Moisture</span><span>DRY</span></div>
+    </div>
+
+    <div class="card magenta">
+      <span class="lbl">SCENE CONTROLS</span>
+      <button class="vr-btn cyan"  style="width:100%;margin-bottom:7px;" onclick="toggleRotation()">⟳ TOGGLE ROTATE</button>
+      <button class="vr-btn gold"  style="width:100%;margin-bottom:7px;" onclick="toggleFX()">✦ TOGGLE FX</button>
+      <button class="vr-btn mag"   style="width:100%;margin-bottom:7px;" onclick="resetPose()">↺ RESET POSE</button>
+    </div>
+
+  </aside>
+
+  <!-- FOOTER -->
+  <footer class="hud-footer">
+    <button class="vr-btn cyan" onclick="document.querySelector('a-scene').enterVR()">◈ ENTER VR</button>
+    <span style="color:var(--gold);font-family:'Space Mono';font-size:9px;letter-spacing:2px;">
+      WebXR · Click scene to look around
+    </span>
+    <button class="vr-btn mag"  onclick="document.querySelector('a-scene').enterAR()">◈ ENTER AR</button>
+  </footer>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ██████████  A-FRAME  VR  SCENE  ██████████
+     Creative VR Fashion Showroom:
+       • Deep space void sky with star-dust
+       • Massive hexagonal reflective stage floor
+       • 3 animated neon runway torus rings
+       • 6 holographic light pillars with orb tops
+       • Floating "VASTRAVERSE XR" brand holo-sign
+       • 30 ambient drifting particle orbs
+       • Spinning VastraVerse Mannequin centrestage
+       • 3-point studio + rim + under-glow lighting
+       • Distant background shards for depth
+═══════════════════════════════════════════════════════ -->
+<a-scene
+  id="main-scene"
+  webxr="optionalFeatures: hit-test, dom-overlay, local-floor; overlayElement: #hud;"
+  renderer="antialias:true; alpha:true; colorManagement:true; physicallyCorrectLights:true; toneMapping:ACESFilmic;"
+  fog="type:exponential; color:#020610; density:0.025"
+  vr-mode-ui="enabled:true">
+
+  <!-- ═══ ASSETS ═══ -->
+  <a-assets timeout="15000">
+    <a-asset-item id="mannequin-glb" src="vastraverse_mannequin.glb"></a-asset-item>
+  </a-assets>
+
+  <!-- ─────────────────────────────────────────
+       SKY  –  Deep fashion void with gradient
+  ───────────────────────────────────────── -->
+  <a-sky color="#020610"></a-sky>
+
+  <!-- Star-field: 60 tiny white spheres scattered far away -->
+  <a-entity id="stars">
+    <!-- JS generates these below -->
+  </a-entity>
+
+  <!-- ─────────────────────────────────────────
+       STAGE FLOOR  –  Octagonal reflective deck
+  ───────────────────────────────────────── -->
+  <!-- Main reflective disc -->
+  <a-cylinder id="floor-disc"
+    position="0 0 -3"
+    radius="5" height="0.05"
+    color="#070c1a"
+    metalness="0.95" roughness="0.05"
+    shadow="receive:true">
+  </a-cylinder>
+
+  <!-- Glowing floor border ring -->
+  <a-torus position="0 0.03 -3" radius="5" radius-tubular="0.02"
+    color="#c9a84c" roughness="0" metalness="1" opacity="0.6">
+  </a-torus>
+
+  <!-- Inner glow pool beneath mannequin -->
+  <a-cylinder position="0 0.01 -3" radius="1.2" height="0.01"
+    color="#00ffe7" opacity="0.12" roughness="1" metalness="0"
+    animation="property:opacity; from:0.08; to:0.22; dir:alternate; dur:2200; loop:true; easing:easeInOutSine">
+  </a-cylinder>
+
+  <!-- ─────────────────────────────────────────
+       RUNWAY RINGS  –  3 animated neon tori
+  ───────────────────────────────────────── -->
+  <!-- Ring 1 – tight cyan, fast -->
+  <a-torus position="0 0.06 -3" radius="1.4" radius-tubular="0.012"
+    color="#00ffe7" roughness="0" metalness="1"
+    animation="property:rotation; from:0 0 0; to:0 360 0; dur:6000; easing:linear; loop:true">
+  </a-torus>
+
+  <!-- Ring 2 – mid gold, medium, tilted -->
+  <a-torus position="0 0.06 -3" radius="2.4" radius-tubular="0.009"
+    color="#c9a84c" roughness="0" metalness="1"
+    rotation="10 0 5"
+    animation="property:rotation; from:10 0 5; to:10 -360 5; dur:10000; easing:linear; loop:true">
+  </a-torus>
+
+  <!-- Ring 3 – outer magenta, slow, opposite tilt -->
+  <a-torus position="0 0.06 -3" radius="3.6" radius-tubular="0.006"
+    color="#ff2d78" roughness="0" metalness="1"
+    rotation="-8 0 -3"
+    animation="property:rotation; from:-8 0 -3; to:-8 360 -3; dur:16000; easing:linear; loop:true">
+  </a-torus>
+
+  <!-- ─────────────────────────────────────────
+       HOLOGRAPHIC PILLARS  –  6 around stage
+  ───────────────────────────────────────── -->
+  <!-- Pillar macro: tube + glow orb at top -->
+
+  <!-- Front-right cyan -->
+  <a-entity position="1.8 0 -1.7">
+    <a-cylinder height="4" radius="0.035" color="#00ffe7" opacity="0.25" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.09" color="#00ffe7" roughness="0" metalness="1"
+      animation="property:scale; from:1 1 1; to:1.6 1.6 1.6; dir:alternate; dur:1600; loop:true">
+    </a-sphere>
+    <a-light type="point" position="0 2 0" color="#00ffe7" intensity="0.5" distance="3"></a-light>
+  </a-entity>
+
+  <!-- Front-left magenta -->
+  <a-entity position="-1.8 0 -1.7">
+    <a-cylinder height="4" radius="0.035" color="#ff2d78" opacity="0.25" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.09" color="#ff2d78" roughness="0" metalness="1"
+      animation="property:scale; from:1.6 1.6 1.6; to:1 1 1; dir:alternate; dur:1900; loop:true">
+    </a-sphere>
+    <a-light type="point" position="0 2 0" color="#ff2d78" intensity="0.5" distance="3"></a-light>
+  </a-entity>
+
+  <!-- Mid-right gold -->
+  <a-entity position="2.8 0 -3">
+    <a-cylinder height="4" radius="0.035" color="#c9a84c" opacity="0.25" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.09" color="#c9a84c" roughness="0" metalness="1"
+      animation="property:scale; from:1 1 1; to:1.5 1.5 1.5; dir:alternate; dur:2200; loop:true">
+    </a-sphere>
+    <a-light type="point" position="0 2 0" color="#c9a84c" intensity="0.4" distance="3"></a-light>
+  </a-entity>
+
+  <!-- Mid-left gold -->
+  <a-entity position="-2.8 0 -3">
+    <a-cylinder height="4" radius="0.035" color="#c9a84c" opacity="0.25" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.09" color="#c9a84c" roughness="0" metalness="1"
+      animation="property:scale; from:1.5 1.5 1.5; to:1 1 1; dir:alternate; dur:2500; loop:true">
+    </a-sphere>
+    <a-light type="point" position="0 2 0" color="#c9a84c" intensity="0.4" distance="3"></a-light>
+  </a-entity>
+
+  <!-- Back-right cyan -->
+  <a-entity position="2.0 0 -4.8">
+    <a-cylinder height="4" radius="0.025" color="#00ffe7" opacity="0.18" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.07" color="#00ffe7" roughness="0" metalness="1"
+      animation="property:scale; from:1 1 1; to:1.4 1.4 1.4; dir:alternate; dur:2800; loop:true">
+    </a-sphere>
+  </a-entity>
+
+  <!-- Back-left magenta -->
+  <a-entity position="-2.0 0 -4.8">
+    <a-cylinder height="4" radius="0.025" color="#ff2d78" opacity="0.18" roughness="0" metalness="1" side="double"></a-cylinder>
+    <a-sphere position="0 2 0" radius="0.07" color="#ff2d78" roughness="0" metalness="1"
+      animation="property:scale; from:1.4 1.4 1.4; to:1 1 1; dir:alternate; dur:3100; loop:true">
+    </a-sphere>
+  </a-entity>
+
+  <!-- ─────────────────────────────────────────
+       FLOATING BRAND SIGN
+  ───────────────────────────────────────── -->
+  <a-entity
+    animation="property:position; from:0 3.6 -3; to:0 3.9 -3; dir:alternate; dur:3000; easing:easeInOutSine; loop:true"
+    position="0 3.6 -3">
+    <!-- Backing panel -->
+    <a-plane width="2.2" height="0.42" color="#050810" opacity="0.88" side="double"></a-plane>
+    <!-- Gold top-border line -->
+    <a-plane width="2.2" height="0.025" color="#c9a84c" position="0 0.2 0.001"></a-plane>
+    <!-- Cyan bottom-border line -->
+    <a-plane width="2.2" height="0.015" color="#00ffe7" position="0 -0.2 0.001"></a-plane>
+    <!-- Brand text -->
+    <a-text value="VASTRAVERSE XR" align="center" color="#c9a84c"
+      width="4.5" position="0 0.02 0.005"
+      font="https://cdn.aframe.io/fonts/Exo2Bold.fnt">
+    </a-text>
+    <a-text value="SMART TEXTILE · VR SHOWROOM" align="center" color="#00ffe7"
+      width="3" position="0 -0.13 0.005" font="https://cdn.aframe.io/fonts/SpaceMono.fnt">
+    </a-text>
+    <!-- Corner accents -->
+    <a-plane width="0.04" height="0.42" color="#c9a84c" position="-1.08 0 0.001" opacity="0.5"></a-plane>
+    <a-plane width="0.04" height="0.42" color="#c9a84c" position="1.08 0 0.001" opacity="0.5"></a-plane>
+  </a-entity>
+
+  <!-- ─────────────────────────────────────────
+       SCAN-LINE HOLOGRAM CYLINDER around suit
+  ───────────────────────────────────────── -->
+  <a-cylinder id="scan-shell" position="0 0.9 -3"
+    height="2.2" radius="0.72"
+    color="#00ffe7" opacity="0.04"
+    side="double" roughness="1" metalness="0"
+    animation="property:rotation; from:0 0 0; to:0 360 0; dur:20000; easing:linear; loop:true">
+  </a-cylinder>
+  <!-- Scan ring that moves up/down -->
+  <a-torus id="scan-ring" position="0 0 -3" radius="0.72" radius-tubular="0.006"
+    color="#00ffe7" opacity="0.7" roughness="0" metalness="1"
+    animation="property:position; from:0 0.1 -3; to:0 1.9 -3; dir:alternate; dur:2500; easing:easeInOutSine; loop:true">
+  </a-torus>
+
+  <!-- ─────────────────────────────────────────
+       MANNEQUIN  –  VastraVerse GLB  (STAR OF THE SHOW)
+  ───────────────────────────────────────── -->
+  <a-entity
+    id="suit"
+    gltf-model="#mannequin-glb"
+    position="0 0 -3"
+    scale="1 1 1"
+    rotation="0 0 0"
+    shadow="cast:true; receive:true">
+  </a-entity>
+
+  <!-- ─────────────────────────────────────────
+       STUDIO LIGHTING  –  3-point + effects
+  ───────────────────────────────────────── -->
+  <!-- Key: warm white from upper-front-right -->
+  <a-light type="directional" position="3 6 2"  intensity="1.8" color="#fff8f0"
+    shadow="cast:true; mapSize:2048; bias:-0.001">
+  </a-light>
+  <!-- Fill: soft gold from left -->
+  <a-light type="directional" position="-4 4 1" intensity="0.9" color="#c9a84c"></a-light>
+  <!-- Rim: cyan from behind -->
+  <a-light type="directional" position="0 3 8"  intensity="0.7" color="#00ffe7"></a-light>
+  <!-- Under-glow: magenta pool below model -->
+  <a-light type="point" position="0 0.2 -3" intensity="0.6" color="#ff2d78" distance="3"></a-light>
+  <!-- Overhead spot on mannequin -->
+  <a-light id="suit-spot" type="point" position="0 5 -3"
+    intensity="1.2" color="#ffffff" distance="8">
+  </a-light>
+  <!-- Ambient fill -->
+  <a-light type="ambient" intensity="0.35" color="#0a0f2e"></a-light>
+
+  <!-- ─────────────────────────────────────────
+       BACKGROUND DEPTH SHARDS
+  ───────────────────────────────────────── -->
+  <a-plane width="1.2" height="3.5" color="#00ffe7" opacity="0.03"
+    position="7 1.5 -10" rotation="0 -25 12" side="double"></a-plane>
+  <a-plane width="0.8" height="2.0" color="#c9a84c" opacity="0.04"
+    position="-8 2 -11" rotation="0 18 -8"  side="double"></a-plane>
+  <a-plane width="1.5" height="0.9" color="#ff2d78" opacity="0.04"
+    position="6 3.5 -14" rotation="0 -50 4" side="double"></a-plane>
+  <a-plane width="0.7" height="2.5" color="#00ffe7" opacity="0.03"
+    position="-6 1 -12" rotation="0 32 18"  side="double"></a-plane>
+  <a-plane width="2.0" height="1.0" color="#c9a84c" opacity="0.03"
+    position="0 5 -15"  rotation="5 0 0"    side="double"></a-plane>
+
+  <!-- ─────────────────────────────────────────
+       AR RETICLE  (visible only in AR mode)
+  ───────────────────────────────────────── -->
+  <a-ring id="reticle"
+    rotation="-90 0 0" position="0 0.01 -2"
+    radius-inner="0.12" radius-outer="0.20"
+    color="#00ffe7" opacity="0.85" visible="false">
+    <a-ring radius-inner="0.05" radius-outer="0.08" color="#fff" opacity="0.5"></a-ring>
+  </a-ring>
+
+  <!-- ─────────────────────────────────────────
+       PARTICLE ORBS container  (filled by JS)
+  ───────────────────────────────────────── -->
+  <a-entity id="particles-root"></a-entity>
+
+  <!-- ─────────────────────────────────────────
+       STARS container  (filled by JS)
+  ───────────────────────────────────────── -->
+  <a-entity id="stars-root"></a-entity>
+
+  <!-- ─────────────────────────────────────────
+       CAMERA  +  VR CONTROLLERS
+  ───────────────────────────────────────── -->
+  <a-entity id="rig" position="0 1.6 2.5">
+    <a-camera id="cam"
+      look-controls="pointerLockEnabled:true"
+      wasd-controls="acceleration:18">
+      <a-cursor color="#00ffe7" fuse="false" opacity="0.7"></a-cursor>
+    </a-camera>
+    <!-- VR motion controllers with laser pointers -->
+    <a-entity laser-controls="hand:right" raycaster="objects:.clickable; far:20"></a-entity>
+    <a-entity laser-controls="hand:left"  raycaster="objects:.clickable; far:20"></a-entity>
+  </a-entity>
+
+</a-scene>
+
+<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+<script>
+// ─── WAIT FOR AFRAME ────────────────────────────────────
+AFRAME.registerComponent('auto-rotate', {
+  schema: { speed: { default: 0.4 } },
+  tick(time, delta) {
+    this.el.object3D.rotation.y += THREE.MathUtils.degToRad(this.data.speed);
+  }
+});
+
+// ─── REFS ────────────────────────────────────────────────
+const scene     = document.getElementById('main-scene');
+const suit      = document.getElementById('suit');
+const glow      = document.getElementById('suit-spot');
+const reticle   = document.getElementById('reticle');
+const particles = document.getElementById('particles-root');
+const stars     = document.getElementById('stars-root');
+
+let rotating   = true;
+let fxOn       = true;
+let rotY       = 0;
+
+// ─── STARS ───────────────────────────────────────────────
+(function buildStars() {
+  for (let i = 0; i < 60; i++) {
+    const s    = document.createElement('a-sphere');
+    const phi  = Math.random() * Math.PI * 2;
+    const theta= Math.random() * Math.PI;
+    const r    = 40 + Math.random() * 20;
+    s.setAttribute('position', {
+      x: r * Math.sin(theta) * Math.cos(phi),
+      y: r * Math.cos(theta),
+      z: r * Math.sin(theta) * Math.sin(phi)
+    });
+    s.setAttribute('radius', 0.06 + Math.random() * 0.12);
+    s.setAttribute('color', '#ffffff');
+    s.setAttribute('opacity', 0.3 + Math.random() * 0.5);
+    s.setAttribute('roughness', 1);
+    s.setAttribute('metalness', 0);
+    s.setAttribute('animation', `property:opacity; from:${0.2+Math.random()*0.3}; to:${0.6+Math.random()*0.4}; dir:alternate; dur:${1200+Math.random()*3000}; loop:true`);
+    stars.appendChild(s);
+  }
+})();
+
+// ─── PARTICLES ───────────────────────────────────────────
+(function buildParticles() {
+  const colors = ['#00ffe7', '#c9a84c', '#ff2d78', '#ffffff', '#7b5bff'];
+  for (let i = 0; i < 30; i++) {
+    const orb  = document.createElement('a-sphere');
+    const x    = (Math.random() - 0.5) * 9;
+    const y    =  Math.random() * 3.5 + 0.2;
+    const z    = (Math.random() - 0.5) * 9 - 3;
+    const r    =  0.015 + Math.random() * 0.04;
+    const col  =  colors[Math.floor(Math.random() * colors.length)];
+    const dur  =  1800 + Math.random() * 4000;
+    const rise =  0.6  + Math.random() * 1.8;
+    orb.setAttribute('position', `${x} ${y} ${z}`);
+    orb.setAttribute('radius',   r);
+    orb.setAttribute('color',    col);
+    orb.setAttribute('roughness', 0);
+    orb.setAttribute('metalness', 1);
+    orb.setAttribute('opacity',  0.6 + Math.random() * 0.3);
+    orb.setAttribute('animation',
+      `property:position; from:${x} ${y} ${z}; to:${x+(Math.random()-.5)*.6} ${y+rise} ${z+(Math.random()-.5)*.4}; ` +
+      `dir:alternate; dur:${dur}; loop:true; easing:easeInOutSine`);
+    particles.appendChild(orb);
+  }
+})();
+
+// ─── ROTATION TICK ───────────────────────────────────────
+scene.addEventListener('tick', () => {
+  if (rotating) {
+    rotY = (rotY + 0.35) % 360;
+    suit.setAttribute('rotation', `0 ${rotY} 0`);
+  }
+
+  // AR reticle follows gaze
+  const cam = document.getElementById('cam');
+  if (cam && cam.object3D && scene.is('ar-mode')) {
+    const pos = cam.object3D.position;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.object3D.quaternion);
+    reticle.object3D.position.set(pos.x + dir.x * 2.5, 0.01, pos.z + dir.z * 2.5);
+  }
+});
+
+// ─── AR: TAP TO PLACE ────────────────────────────────────
+scene.addEventListener('click', () => {
+  if (scene.is('ar-mode')) {
+    const p = reticle.getAttribute('position');
+    suit.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+    toast('POSITIONED');
+  }
+});
+
+// Show/hide reticle with AR mode
+scene.addEventListener('enter-ar',  () => { reticle.setAttribute('visible', true);  toast('AR MODE ACTIVE'); });
+scene.addEventListener('exit-ar',   () => { reticle.setAttribute('visible', false); });
+scene.addEventListener('enter-vr',  () => toast('VR MODE ACTIVE'));
+
+// ─── MODEL EVENTS ────────────────────────────────────────
+document.getElementById('mannequin-glb').addEventListener('loaded', () => {
+  toast('MODEL LOADED ✓');
+  // Auto-scale to look good in scene
+  const el = document.getElementById('suit');
+  // Let three.js bounding box decide scale after load
+  el.addEventListener('model-loaded', () => {
+    const mesh = el.getObject3D('mesh');
+    if (!mesh) return;
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const h = size.y;
+    if (h > 0) {
+      const target = 2.0; // desired height in meters
+      const s = target / h;
+      el.setAttribute('scale', `${s} ${s} ${s}`);
+      // Re-center on floor
+      const minY = box.min.y * s;
+      el.setAttribute('position', `0 ${-minY} -3`);
+    }
+  });
+});
+document.getElementById('mannequin-glb').addEventListener('error', () => {
+  toast('⚠ GLB NOT FOUND — place vastraverse_mannequin.glb beside this HTML');
+  console.warn('Place vastraverse_mannequin.glb in same folder as vastraverse_vr.html');
+});
+
+// ─── FABRIC PICKER ───────────────────────────────────────
+function pickFabric(el, hex, name, glowCol) {
+  document.querySelectorAll('.fab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('fab-name').innerText = name;
+
+  const mesh = suit.getObject3D('mesh');
+  if (mesh) {
+    const c = new THREE.Color(hex);
+    mesh.traverse(node => {
+      if (!node.isMesh) return;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach(m => {
+        if (m.color !== undefined)    m.color.set(c);
+        if (m.emissive !== undefined) { m.emissive.set(c); m.emissiveIntensity = 0.18; }
+      });
+    });
+  }
+  // Update glow pillar (suit-spot) colour
+  glow.setAttribute('light', 'color', glowCol || hex);
+  toast(name.toUpperCase() + ' APPLIED');
+}
+
+// ─── THERMAL SLIDER ──────────────────────────────────────
+document.getElementById('temp-slider').addEventListener('input', e => {
+  const v = +e.target.value;
+  document.getElementById('temp-disp').innerHTML = `${v}<sup>°C</sup>`;
+  const mt = document.getElementById('mode-text');
+  if (v > 30) {
+    mt.style.color = 'var(--cyan)'; mt.innerText = 'COOLING ACTIVE';
+    glow.setAttribute('light', { intensity: 0.6 + (v-30)/25, color: '#00ffe7' });
+  } else if (v < 22) {
+    mt.style.color = 'var(--magenta)'; mt.innerText = 'HEATING ACTIVE';
+    glow.setAttribute('light', { intensity: 0.6 + (22-v)/15, color: '#ff2d78' });
+  } else {
+    mt.style.color = 'var(--gold)'; mt.innerText = 'STABLE';
+    glow.setAttribute('light', { intensity: 0.5, color: '#c9a84c' });
+  }
+});
+
+// ─── CONTROLS ────────────────────────────────────────────
+function toggleRotation() { rotating = !rotating; toast(rotating ? 'ROTATION ON' : 'ROTATION OFF'); }
+function toggleFX()       { fxOn = !fxOn; particles.setAttribute('visible', fxOn); document.getElementById('scan-ring').setAttribute('visible', fxOn); toast(fxOn ? 'FX ON' : 'FX OFF'); }
+function resetPose()      { rotY = 0; suit.setAttribute('rotation','0 0 0'); toast('POSE RESET'); }
+
+// ─── TOAST ───────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg; t.style.display = 'block';
+  clearTimeout(t._id);
+  t._id = setTimeout(() => t.style.display = 'none', 2400);
+}
+
+// Ready
+setTimeout(() => toast('VASTRAVERSE VR READY'), 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VastraVerse Pro - Smart Saree Dashboard</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #000; }
+        
+        /* Left Panel */
+        .left-panel { position: absolute; left: 20px; top: 100px; width: 280px; z-index: 999; }
+        
+        .mode-card { 
+            background: rgba(0,0,0,0.8); color: white; padding: 15px; margin-bottom: 12px; 
+            border-radius: 12px; border-left: 5px solid #ff69b4; transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Temperature Input Styling */
+        .temp-input-box {
+            background: rgba(30, 30, 30, 0.9); padding: 15px; border-radius: 12px;
+            border: 1px solid #444; color: white; margin-bottom: 12px;
+        }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #ff69b4; }
+
+        /* Right Panel */
+        .right-panel { position: absolute; right: 20px; top: 100px; width: 260px; z-index: 999; }
+        .feature-tag { 
+            background: rgba(255,255,255,0.1); color: white; padding: 12px; 
+            margin-bottom: 10px; border-radius: 8px; backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2); font-size: 14px;
+        }
+
+        /* Fiber Status Display */
+        .status-display {
+            background: rgba(0, 255, 100, 0.1); border: 1px solid #0f6;
+            padding: 10px; border-radius: 8px; margin-top: 10px; color: #0f6;
+            font-family: monospace; font-size: 15px;
+        }
+
+        .header { 
+            position: absolute; top: 0; width: 100%; text-align: center; color: white; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); 
+            padding: 20px 0; z-index: 999; letter-spacing: 3px;
+        }
+
+        .fabric-box { 
+            position: absolute; bottom: 30px; left: 20px; background: rgba(0,0,0,0.85); 
+            color: white; padding: 15px; border-radius: 10px; width: 280px; z-index: 999; 
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1 style="margin:0;">VASTRAVERSE: SMARTWEAVE</h1>
+    </div>
+
+    <!-- Left Interaction Panel -->
+    <div class="left-panel">
+        
+        <!-- Temperature Input Control -->
+        <div class="temp-input-box">
+            <label>🌡️ Ambient Temp: <span id="tempVal" style="font-weight:bold; color:#ff69b4;">27</span>°C</label>
+            <input type="range" id="tempSlider" min="10" max="50" value="27" oninput="autoAdjust(this.value)">
+            
+            <div id="fiberStatus" class="status-display">
+                STATUS: IDLE<br>FIBER: OPTIMAL
+            </div>
+        </div>
+
+        <div class="mode-card" style="border-color: #ff69b4; cursor:pointer;" onclick="toggleFabric()">
+            <strong>🔍 View Fabric Layers</strong>
+        </div>
+    </div>
+
+    <!-- Right Feature Panel -->
+    <div class="right-panel">
+        <div class="feature-tag">❄️ <strong>Cooling Threshold</strong>: > 30°C</div>
+        <div class="feature-tag">🔥 <strong>Heating Threshold</strong>: < 20°C</div>
+        <div class="feature-tag" style="border-left: 4px solid #4CAF50;">🌿 <strong>Eco Material</strong>: Organic Silk</div>
+    </div>
+
+    <!-- Fabric Layers Information -->
+    <div id="fabricInfo" class="fabric-box">
+        <h4 style="margin-top:0; color:#ff69b4;">Fiber Component Analysis</h4>
+        <div style="border-bottom:1px solid #444; padding:5px;">• Cooling Nano-Polymer</div>
+        <div style="border-bottom:1px solid #444; padding:5px;">• Graphene Thermal Grid</div>
+        <div style="padding:5px;">• Moisture-wicking Core</div>
+    </div>
+
+    <a-scene>
+        <a-assets>
+            <a-asset-item id="sareeModel" src="./traditional_indian_saree_model.glb"></a-asset-item>
+        </a-assets>
+
+        <!-- Dynamic Environment -->
+        <a-entity id="env" environment="preset: starry; groundColor: #111; grid: dots"></a-entity>
+
+        <!-- Saree Model Display -->
+        <a-entity position="0 1 -2.5">
+            <a-entity 
+                id="saree"
+                gltf-model="#sareeModel"
+                scale="1 1 1"
+                rotation="0 180 0"
+                animation="property: rotation; to: 0 540 0; loop: true; dur: 35000; easing: linear">
+            </a-entity>
+            <
+        </a-entity>
+
+        <a-light id="mainLight" type="ambient" intensity="0.7"></a-light>
+        <a-light id="pointLight" type="point" position="0 3 -1" intensity="0.5"></a-light>
+
+        <a-entity camera look-controls position="0 1.5 1.5"></a-entity>
+    </a-scene>
+
+    <script>
+        function autoAdjust(val) {
+            document.getElementById('tempVal').innerText = val;
+            const saree = document.querySelector('#saree');
+            const status = document.getElementById('fiberStatus');
+            const env = document.querySelector('#env');
+            const pLight = document.querySelector('#pointLight');
+
+            if (val > 30) {
+                // COOLING MODE
+                saree.setAttribute('material', 'emissive', '#00d2ff');
+                saree.setAttribute('material', 'emissiveIntensity', '0.7');
+                pLight.setAttribute('color', '#00d2ff');
+                status.innerHTML = "STATUS: COOLING ACTIVE<br>FIBER: VENTILATING";
+                status.style.color = "#00d2ff";
+                status.style.borderColor = "#00d2ff";
+                env.setAttribute('environment', 'preset: default; groundColor: #001a1a');
+            } 
+            else if (val < 20) {
+                // HEATING MODE
+                saree.setAttribute('material', 'emissive', '#ff4500');
+                saree.setAttribute('material', 'emissiveIntensity', '0.7');
+                pLight.setAttribute('color', '#ff4500');
+                status.innerHTML = "STATUS: HEATING ACTIVE<br>FIBER: RETAINING HEAT";
+                status.style.color = "#ff4500";
+                status.style.borderColor = "#ff4500";
+                env.setAttribute('environment', 'preset: sunset; groundColor: #1a0a00');
+            } 
+            else {
+                // NORMAL MODE
+                saree.setAttribute('material', 'emissiveIntensity', '0');
+                pLight.setAttribute('color', '#ffffff');
+                status.innerHTML = "STATUS: IDLE<br>FIBER: OPTIMAL";
+                status.style.color = "#0f6";
+                status.style.borderColor = "#0f6";
+                env.setAttribute('environment', 'preset: starry; groundColor: #111');
+            }
+        }
+
+        function toggleFabric() {
+            const info = document.getElementById('fabricInfo');
+            info.style.display = (info.style.display === 'none') ? 'block' : 'none';
+        }
+
+        // Initialize display
+        document.getElementById('fabricInfo').style.display = 'none';
+    </script>
+</body>
+</html>
